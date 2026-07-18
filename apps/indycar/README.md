@@ -2,7 +2,7 @@
 
 Indycar displays next race details and current standings details for NTT Indycar or Indy NXT Series
 
-Track images are by @samhi113
+Track outlines are sourced from indycar.com's official circuit diagrams.
 
 Displayed:
 
@@ -27,7 +27,7 @@ Displayed:
 
 ## Thanks
 - Thanks a lot to @AMillionAir as the original maker of the [Forumla 1 applet](../formula1/).
-- Track images are provided by @samhi113
+- Thanks to @samhi113 for the original hand-drawn track art (since replaced with official indycar.com circuit outlines).
 
 ## Screenshot
 

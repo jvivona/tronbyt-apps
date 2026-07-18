@@ -1,7 +1,7 @@
 """
 Applet: Indy Car
 Summary: Indy Car Race & Standings
-Description: Show Indy Car next race info and current driver standings. - F1 Next Race from AMillionAir was the original inspiration for my race apps.  Track images by @samhi113.
+Description: Show Indy Car next race info and current driver standings. - F1 Next Race from AMillionAir was the original inspiration for my race apps.  Track outlines from indycar.com; thanks to @samhi113 for the original hand-drawn track art.
 Author: jvivona
 """
 
