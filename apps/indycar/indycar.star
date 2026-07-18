@@ -25,6 +25,7 @@ load("http.star", "http")
 load("render.star", "canvas", "render")
 load("schema.star", "schema")
 load("time.star", "time")
+load("tracks.star", "TRACK_1X", "TRACK_2X")
 
 VERSION = 23311
 
@@ -36,7 +37,6 @@ DEFAULTS = {
     "date_us": True,
     "api": "https://raw.githubusercontent.com/jvivona/tidbyt-data/main/indycar/{}/{}.json",
     "ttl": 1800,
-    "trackttl": 86400,
     "positions": 12,
     "text_color": "#FFFFFF",
 }
@@ -69,12 +69,14 @@ TITLE_FONT = "tb-8" if IS2X else "tom-thumb"
 TITLE_HEIGHT = 9 if IS2X else 6
 BODY_HEIGHT = HEIGHT - TITLE_HEIGHT
 
-# Next-race track thumbnail and its box, doubled for 2x.
-TRACK_BOX_WIDTH = 32 if IS2X else 16
-TRACK_IMG_WIDTH = 28 if IS2X else 14
-TRACK_IMG_HEIGHT = 48 if IS2X else 24
+# Next-race track map panel. The panel is wider than the old hand-drawn
+# thumbnail so the (mostly landscape) official circuit outlines read; each
+# TRACK_* image is pre-sized to exactly fill the panel (24x26 at 1x, 48x55 at
+# 2x), so it renders at native size and no width/height scaling is needed.
+TRACK_BOX_WIDTH = 48 if IS2X else 24
+TRACK_IMAGES = TRACK_2X if IS2X else TRACK_1X
 
-# Data box widths: next-race fills whatever the track thumbnail leaves;
+# Data box widths: next-race fills whatever the track panel leaves;
 # standings uses the full width.
 NRI_DATA_BOX_WIDTH = WIDTH - TRACK_BOX_WIDTH
 DRV_DATA_BOX_WIDTH = WIDTH
@@ -117,7 +119,6 @@ def main(config):
 #            Next Race  Functions
 # ##############################################
 def nextrace(config, data):
-    IMAGES = json.decode(get_cachable_data(DEFAULTS["api"].format("tracks", "tracks"), DEFAULTS["trackttl"]))
     timezone = time.tz()  # Utilize special timezone variable to get TZ - otherwise assume US Eastern w/DST
     date_and_time = data["start"]
     date_and_time3 = time.parse_time(date_and_time, "2006-01-02T15:04:05-0700").in_location(timezone)
@@ -133,9 +134,14 @@ def nextrace(config, data):
         qual_time_str = "TBD" if qual_date_and_time.endswith("T00:00:00-0500") else qual_date_and_time3.format("15:04 " if config.bool("is_24_hour_format", DEFAULTS["time_24"]) else "3:04pm")[:-1]
     text_color = config.get("text_color", DEFAULTS["text_color"])
 
+    # Track map is bundled locally (see tracks.star), keyed by trackid and
+    # already sized to the panel. An unknown trackid degrades to an empty panel
+    # rather than crashing the render.
+    track_b64 = TRACK_IMAGES.get(data["trackid"], "")
+    track_child = render.Image(src = base64.decode(track_b64)) if track_b64 else None
+
     return render.Row(expanded = True, children = [
-        render.Box(width = TRACK_BOX_WIDTH, height = BODY_HEIGHT, child = render.Image(src = base64.decode(IMAGES[data["trackid"]]), height = TRACK_IMG_HEIGHT, width = TRACK_IMG_WIDTH)),
-        #render.Box(width = TRACK_BOX_WIDTH, height = BODY_HEIGHT, child = render.Image(src = base64.decode(IMAGES[data["type"]]), height = TRACK_IMG_HEIGHT, width = TRACK_IMG_WIDTH)),
+        render.Box(width = TRACK_BOX_WIDTH, height = BODY_HEIGHT, child = track_child),
         fade_child(data["name"], data["track"], "Race\n{}\n{}\nTV: {}".format(date_str, time_str, data["tv"].upper()), "Qual\n{}\n{}".format(qual_date_str, qual_time_str), text_color),
     ])
 
