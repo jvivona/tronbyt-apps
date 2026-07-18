@@ -22,7 +22,7 @@ Author: jvivona
 load("encoding/base64.star", "base64")
 load("encoding/json.star", "json")
 load("http.star", "http")
-load("render.star", "render")
+load("render.star", "canvas", "render")
 load("schema.star", "schema")
 load("time.star", "time")
 
@@ -42,14 +42,10 @@ DEFAULTS = {
 }
 
 SIZES = {
-    "regular_font": "tom-thumb",
-    "datetime_font": "tom-thumb",
     "animation_frames": 30,
     "animation_hold_frames": 75,
     "data_box_bkg": "#000",
     "slide_duration": 99,
-    "nri_data_box_width": 48,
-    "drv_data_box_width": 64,
     "data_box_height": 26,
     "title_box_width": 64,
     "title_box_height": 7,
@@ -59,6 +55,35 @@ SERIES = {
     "car": ["NTT Indycar", "#0086bf80"],
     "nxt": ["Indy NXT Series", "#da291c80"],
 }
+
+# 2x (128x64) doubles the canvas; every 1x literal below is left exactly as it
+# was and only the 2x branch is new. IS2X is safe to read at module load.
+IS2X = canvas.is2x()
+
+WIDTH = 128 if IS2X else 64
+HEIGHT = 64 if IS2X else 32
+
+# Title bar: tb-8 centers cleanly in a height-9 box at 2x (no offset); the 1x
+# tom-thumb bar stays height 6.
+TITLE_FONT = "tb-8" if IS2X else "tom-thumb"
+TITLE_HEIGHT = 9 if IS2X else 6
+BODY_HEIGHT = HEIGHT - TITLE_HEIGHT
+
+# Next-race track thumbnail and its box, doubled for 2x.
+TRACK_BOX_WIDTH = 32 if IS2X else 16
+TRACK_IMG_WIDTH = 28 if IS2X else 14
+TRACK_IMG_HEIGHT = 48 if IS2X else 24
+
+# Data box widths: next-race fills whatever the track thumbnail leaves;
+# standings uses the full width.
+NRI_DATA_BOX_WIDTH = WIDTH - TRACK_BOX_WIDTH
+DRV_DATA_BOX_WIDTH = WIDTH
+
+# Body fonts. Next-race text is centered prose, so a proportional tb-8 reads
+# best at 2x. Standings is space-padded columns, so it needs a true monospace;
+# 6x13 keeps the columns aligned at ~2x the tom-thumb size.
+NRI_FONT = "tb-8" if IS2X else "tom-thumb"
+DRV_FONT = "6x13" if IS2X else "tom-thumb"
 
 def main(config):
     series = config.get("series", DEFAULTS["series"])
@@ -78,9 +103,9 @@ def main(config):
         child = render.Column(
             children = [
                 render.Box(
-                    width = 64,
-                    height = 6,
-                    child = render.Text(SERIES[series][0], font = "tom-thumb"),
+                    width = WIDTH,
+                    height = TITLE_HEIGHT,
+                    child = render.Text(SERIES[series][0], font = TITLE_FONT),
                     color = SERIES[series][1],
                 ),
                 displayrow,
@@ -109,8 +134,8 @@ def nextrace(config, data):
     text_color = config.get("text_color", DEFAULTS["text_color"])
 
     return render.Row(expanded = True, children = [
-        render.Box(width = 16, height = 26, child = render.Image(src = base64.decode(IMAGES[data["trackid"]]), height = 24, width = 14)),
-        #render.Box(width = 16, height = 26, child = render.Image(src = base64.decode(IMAGES[data["type"]]), height = 24, width = 14)),
+        render.Box(width = TRACK_BOX_WIDTH, height = BODY_HEIGHT, child = render.Image(src = base64.decode(IMAGES[data["trackid"]]), height = TRACK_IMG_HEIGHT, width = TRACK_IMG_WIDTH)),
+        #render.Box(width = TRACK_BOX_WIDTH, height = BODY_HEIGHT, child = render.Image(src = base64.decode(IMAGES[data["type"]]), height = TRACK_IMG_HEIGHT, width = TRACK_IMG_WIDTH)),
         fade_child(data["name"], data["track"], "Race\n{}\n{}\nTV: {}".format(date_str, time_str, data["tv"].upper()), "Qual\n{}\n{}".format(qual_date_str, qual_time_str), text_color),
     ])
 
@@ -119,17 +144,17 @@ def fade_child(race, track, date_time_tv, qual_string, text_color):
     if race == track:
         return render.Animation(
             children =
-                createfadelist(track, SIZES["animation_hold_frames"], SIZES["regular_font"], text_color, SIZES["nri_data_box_width"], "center") +
-                createfadelist(qual_string, SIZES["animation_hold_frames"], SIZES["datetime_font"], text_color, SIZES["nri_data_box_width"], "center") +
-                createfadelist(date_time_tv, SIZES["animation_hold_frames"], SIZES["datetime_font"], text_color, SIZES["nri_data_box_width"], "center"),
+                createfadelist(track, SIZES["animation_hold_frames"], NRI_FONT, text_color, NRI_DATA_BOX_WIDTH, "center") +
+                createfadelist(qual_string, SIZES["animation_hold_frames"], NRI_FONT, text_color, NRI_DATA_BOX_WIDTH, "center") +
+                createfadelist(date_time_tv, SIZES["animation_hold_frames"], NRI_FONT, text_color, NRI_DATA_BOX_WIDTH, "center"),
         )
     else:
         return render.Animation(
             children =
-                createfadelist(race, SIZES["animation_hold_frames"], SIZES["regular_font"], text_color, SIZES["nri_data_box_width"], "center") +
-                createfadelist(track, SIZES["animation_hold_frames"], SIZES["regular_font"], text_color, SIZES["nri_data_box_width"], "center") +
-                createfadelist(qual_string, SIZES["animation_hold_frames"], SIZES["datetime_font"], text_color, SIZES["nri_data_box_width"], "center") +
-                createfadelist(date_time_tv, SIZES["animation_hold_frames"], SIZES["datetime_font"], text_color, SIZES["nri_data_box_width"], "center"),
+                createfadelist(race, SIZES["animation_hold_frames"], NRI_FONT, text_color, NRI_DATA_BOX_WIDTH, "center") +
+                createfadelist(track, SIZES["animation_hold_frames"], NRI_FONT, text_color, NRI_DATA_BOX_WIDTH, "center") +
+                createfadelist(qual_string, SIZES["animation_hold_frames"], NRI_FONT, text_color, NRI_DATA_BOX_WIDTH, "center") +
+                createfadelist(date_time_tv, SIZES["animation_hold_frames"], NRI_FONT, text_color, NRI_DATA_BOX_WIDTH, "center"),
         )
 
 # ##############################################
@@ -144,9 +169,9 @@ def standings(config, data):
 
     return render.Animation(
         children =
-            createfadelist(standingformat.format(text[0], text[1], text[2], text[3]), SIZES["animation_hold_frames"], SIZES["regular_font"], text_color, SIZES["drv_data_box_width"], "right") +
-            createfadelist(standingformat.format(text[4], text[5], text[6], text[7]), SIZES["animation_hold_frames"], SIZES["regular_font"], text_color, SIZES["drv_data_box_width"], "right") +
-            createfadelist(standingformat.format(text[8], text[9], text[10], text[11]), SIZES["animation_hold_frames"], SIZES["regular_font"], text_color, SIZES["drv_data_box_width"], "right"),
+            createfadelist(standingformat.format(text[0], text[1], text[2], text[3]), SIZES["animation_hold_frames"], DRV_FONT, text_color, DRV_DATA_BOX_WIDTH, "right") +
+            createfadelist(standingformat.format(text[4], text[5], text[6], text[7]), SIZES["animation_hold_frames"], DRV_FONT, text_color, DRV_DATA_BOX_WIDTH, "right") +
+            createfadelist(standingformat.format(text[8], text[9], text[10], text[11]), SIZES["animation_hold_frames"], DRV_FONT, text_color, DRV_DATA_BOX_WIDTH, "right"),
     )
 
 def drvrtext(data):
