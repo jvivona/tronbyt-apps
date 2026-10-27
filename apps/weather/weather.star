@@ -132,10 +132,22 @@ def main(config):
 
     # Determine which API to use - prefer One Call if available, fallback to V2.5
     if api_onecall_key and api_onecall_key != "":
-        # Try One Call API 4.0 first, then fall back to 3.0 for older subscriptions
-        url = "https://api.openweathermap.org/data/4.0/onecall/timeline/1day?lat={}&lon={}&units={}&appid={}".format(lat, lng, units, api_onecall_key)
+        # Try One Call API 3.0 first, then fall back to 4.0 for newer subscriptions.
+        # 3.0 answers quickly (401 when the key lacks it), while a stalled 4.0
+        # endpoint would hit pixlet's 5s HTTP timeout and abort the whole app.
+        url = "https://api.openweathermap.org/data/3.0/onecall?lat={}&lon={}&units={}&appid={}".format(lat, lng, units, api_onecall_key)
         rep = http.get(url, ttl_seconds = cache_sec)
         if rep.status_code == 200:
+            weather_data = json.decode(rep.body())
+
+            # Process forecast data using One Call API 3.0 processing
+            daily_data = process_forecast_onecall(weather_data, timezone)
+        else:
+            url = "https://api.openweathermap.org/data/4.0/onecall/timeline/1day?lat={}&lon={}&units={}&appid={}".format(lat, lng, units, api_onecall_key)
+            rep = http.get(url, ttl_seconds = cache_sec)
+            if rep.status_code != 200:
+                return error_display("Weather API Error")
+
             weather_data = json.decode(rep.body())
             daily_data = process_forecast_onecall_v4(weather_data, timezone)
 
@@ -152,16 +164,6 @@ def main(config):
                             if show_current_icon:
                                 daily_data[0]["weather"] = map_weather_main(current["weather"][0])
                             daily_data[0]["current_temp"] = current["temp"]
-        else:
-            url = "https://api.openweathermap.org/data/3.0/onecall?lat={}&lon={}&units={}&appid={}".format(lat, lng, units, api_onecall_key)
-            rep = http.get(url, ttl_seconds = cache_sec)
-            if rep.status_code != 200:
-                return error_display("Weather API Error")
-
-            weather_data = json.decode(rep.body())
-
-            # Process forecast data using One Call API 3.0 processing
-            daily_data = process_forecast_onecall(weather_data, timezone)
     elif api_v2_key and api_v2_key != "":
         # Use Standard Forecast API 2.5
         url = "https://api.openweathermap.org/data/2.5/forecast?lat={}&lon={}&units={}&appid={}".format(lat, lng, units, api_v2_key)
